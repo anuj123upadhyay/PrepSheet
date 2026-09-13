@@ -1,0 +1,9 @@
+# PrepSheet - Autonomous Intelligence Daemon
+# Generated: Sat Sep 12 17:57:22 IST 2026
+
+# Dawn Broadside - Morning newspaper
+0 4 * * * cd "/Users/anujupadhyay/Developer/PrepSheet-Folder/PrepSheet" && python3 ps-shared/scripts/dawn_autonomous.py >> data/prepsheet/logs/dawn.log 2>&1
+
+# Meeting Radar - Pre-meeting dossiers
+*/15 * * * * cd "/Users/anujupadhyay/Developer/PrepSheet-Folder/PrepSheet" && python3 ps-shared/scripts/meeting_radar_autonomous.py >> data/prepsheet/logs/radar.log 2>&1
+

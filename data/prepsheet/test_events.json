@@ -1,0 +1,11 @@
+[{
+  "time": "14:00",
+  "title": "Q4 Strategy Review",
+  "attendees": ["you@company.com", "john.smith@client.com"],
+  "external_attendees": ["john.smith@client.com"],
+  "external_domains": ["client.com"],
+  "duration_min": 60,
+  "location": "Zoom",
+  "organizer": "you@company.com",
+  "meeting_id": "test-001"
+}]
