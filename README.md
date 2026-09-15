@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="#how-it-works">How it works</a> ·
-  <a href="#install">Install</a> ·
+  <a href="#install-5-minutes">Install</a> ·
   <a href="#what-it-will-not-do">Boundaries</a> ·
   Built for the <a href="https://luma.com/3uftu95w">Hermes Hackathon</a>
 </p>
@@ -147,7 +147,7 @@ block-beta
 
 - **Docker** (Desktop or Engine)
 - **Git**
-- **Plow Latch** — install from [plow.computer](https://plow.computer)
+- **Plow Latch** — install from [Latch](https://plow.co/latch)
 
 ---
 
@@ -252,8 +252,8 @@ Once configured, PDFs appear at `~/Desktop/PrepSheets/` automatically. The conta
 
 ## The Plow tools it uses
 
-- **[Plow Latch](https://plow.computer)** — Authenticated, sandboxed access to your already-logged-in browser. This is how The PrepSheet reads Google Calendar, Gmail, LinkedIn, Crunchbase, and the web without a single API key or OAuth flow. Every web action is approved through Latch.
-- **[Hermes](https://plow.computer)** — The agent conversation framework. Powers the skill routing, conversational SMS loop, cron scheduling, and the runtime that keeps The PrepSheet running autonomously 24/7.
+- **[Plow Latch](https://plow.co/latch)** — Authenticated, sandboxed access to your already-logged-in browser. This is how The PrepSheet reads Google Calendar, Gmail, LinkedIn, Crunchbase, and the web without a single API key or OAuth flow. Every web action is approved through Latch.
+- **[Hermes](https://github.com/nousresearch/hermes-agent)** — The agent conversation framework. Powers the skill routing, conversational SMS loop, cron scheduling, and the runtime that keeps The PrepSheet running autonomously 24/7.
 - **[agent-index-client](https://github.com/plow-pbc/agent-index-client)** — Usage reporting to the Plow Agent Index.
 
 ---
