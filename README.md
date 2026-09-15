@@ -23,7 +23,15 @@ Every morning before 6 AM it reads your calendar, scans your unread emails, and 
 Thirty minutes before every external meeting, a one-page dossier arrives: who you're meeting, what you last talked about, what to say. Text it a name and it tells you who they are. Text it `NEXT` and it tells you what's coming. No app to open. No tab to switch to.
 
 ---
+## Video Demo
 
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=OS1XsZpvPEc">
+    <img src="https://img.youtube.com/vi/OS1XsZpvPEc/maxresdefault.jpg" alt="The PrepSheet Video Demo" width="100%">
+  </a>
+</div>
+
+---
 ## What makes it different
 
 Every prep tool is stateless: it sees one request, answers it, forgets it.
