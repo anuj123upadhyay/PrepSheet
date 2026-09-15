@@ -226,7 +226,7 @@ Once configured, PDFs appear at `~/Desktop/PrepSheets/` automatically. The conta
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+[LICENSE](LICENSE).
 
 ---
 
