@@ -222,7 +222,7 @@ Once configured, PDFs appear at `~/Desktop/PrepSheets/` automatically. The conta
 
 - Publish, archive, or mark a single email as read
 - Accept, decline, or modify any existing calendar invite
-- Send an email on your behalf
+- Send an email on your behalf without confirmation
 - Create a calendar event without your explicit confirmation
 - Fabricate attendee bios — if there's no public record, it says so
 - Write any temp file outside its sandbox (`/var/lib/hermes/`) — never `/tmp/`
