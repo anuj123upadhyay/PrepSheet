@@ -1,129 +1,97 @@
 ---
 name: ps-setup
-description: First conversation. Configure calendar/email access, printer, SMS alerts, and enable the dawn intelligence engine.
+description: Conversational onboarding wizard. Configure domains, VIP senders, schedule preferences, and initialize PrepSheet.
+version: 2.0.0
+author: PrepSheet
+metadata:
+  hermes:
+    tags: [prepsheet, setup, onboarding, configuration]
+    related_skills: [ps-shared]
 ---
 
-# Bring The PrepSheet online
+# Conversational Setup Wizard
 
-The calendar and email ingestion run via read-only access configured in `.env`. The printer daemon connects to the local CUPS service. **Never ask for passwords in chat**—they belong in `.env` or credential files only.
+This skill runs during the executive's first conversation with The PrepSheet (or upon asking to "reconfigure settings").
+Because PrepSheet connects via **Plow Latch** (leveraging authenticated browser sessions) and native Mac Calendar, **no API keys or email passwords are ever requested in chat**.
 
-If `$HERMES_HOME/prepsheet/config.json` already exists, this is a reconfiguration.
+---
 
-## What to ask
+## Onboarding Conversation Flow
 
-1. **What time to generate the morning paper.** Default 04:00 AM for printing before dawn, with SMS notification at 06:30 AM. Explain that most preparation happens silently—the paper only prints when there are meetings or urgent emails that day.
+Guide the executive through 4 quick, high-signal questions:
 
-2. **Where to save PrepSheet PDFs.** Default `~/Desktop/PrepSheets/`. Confirm the path exists or offer to create it. Every paper is archived as `[Date]-MorningPaper.pdf`, and meeting dossiers as `[Date]-[MeetingName].pdf`.
+### 1. Internal Team Domains
+> "What are your company's primary email domains? (e.g., `mycompany.com`)"
+- **Why**: Anyone with an email outside these domains is classified as an external attendee, triggering attendee background research and dossiers. Internal meetings are kept clean of unnecessary dossiers.
 
-3. **Whether they have a printer configured.** If yes, test with a blank page via CUPS. If no printer is available, all PDFs save to Desktop only (this is the fallback, not a failure—tell them the paper will be there when they wake up).
+### 2. Morning Paper Timing
+> "What time would you like your morning broadside prepared? (Default is 6:00 AM)"
+- **Why**: Configures the daily autonomous intelligence engine.
 
-4. **SMS notification preferences.** The Hermes telephony plugin sends:
-   - 06:30 AM: "Your PrepSheet is ready" (only if there were events/emails to process)
-   - 30 min before meetings: 3-bullet executive brief with dossier path
-   - Responses to on-demand queries (WHO IS, NEXT, DIGEST, URGENT)
-   
-   Ask if they want SMS enabled and confirm the phone number from their Hermes config.
+### 3. VIP Senders
+> "Are there key domains or executive senders you'd like highlighted in your Urgent Email Triage? (e.g., `keyclient.com`, `board@`, `investor@`)"
+- **Why**: Directs the priority scoring algorithm for the front-page headline.
 
-5. **Which email senders are VIPs.** Ask for a short list of domains or sender names that signal urgent/important (e.g., "client domains", "ceo@company", "billing@"). These drive the "Urgent Email Triage" column. Optional—if they skip it, you'll use heuristics (unread + subject keywords like "urgent", "decision", "approval").
+### 4. PDF Archive Directory
+> "By default, papers and dossiers save to `~/Desktop/PrepSheets/`. Does that work for you?"
+- **Why**: Creates a central, accessible folder on the executive's desktop.
 
-6. **Calendar access confirmation.** Verify that `$HERMES_HOME/prepsheet/queue/calendar/` is receiving events. If empty and no errors, the calendar integration hasn't started yet. Don't proceed with scheduling until you see at least one event file.
+---
 
-Don't ask for more. No credit cards, no bank accounts, no API keys in chat—you don't need them and must never store them from a message.
+## Writing the Configuration
 
-## One important clarification
-
-The intelligence archive starts empty. It only sees calendar events and emails **from now forward**. A meeting from last month isn't in the new system. Tell them: "The PrepSheet gets smarter after the first full week—think of this first week as the learning period."
-
-Underpromise now so they trust what you deliver later.
-
-## Write the configuration
+Save the responses to `$HERMES_HOME/prepsheet/config.json`:
 
 ```json
 {
-  "dawn_hour": 4,
-  "sms_notify_hour": 6.5,
-  "sms_enabled": true,
+  "internal_domains": ["mycompany.com"],
+  "vip_senders": ["keyclient.com", "investor@vc.com"],
+  "calendar_sources": ["mac", "plow-google"],
+  "dawn_hour": 6,
+  "meeting_radar_minutes": 30,
   "pdf_archive_path": "~/Desktop/PrepSheets",
-  "printer_enabled": true,
-  "printer_name": "default",
-  "vip_senders": ["client.com", "ceo@mycompany.com"],
-  "meeting_radar_minutes": 30
+  "sms_enabled": true,
+  "use_plow_latch": true,
+  "osint_blacklist": []
 }
 ```
 
-Save to `$HERMES_HOME/prepsheet/config.json`.
+---
 
-Create the archive directory:
-```bash
-mkdir -p ~/Desktop/PrepSheets
-```
+## Directory Initialization
 
-## Initialize the intelligence stores
-
-Create empty structures for the daemon to populate:
+Initialize the desktop archive and cache stores:
 
 ```bash
-mkdir -p "$HERMES_HOME/prepsheet/queue/calendar"
-mkdir -p "$HERMES_HOME/prepsheet/queue/email"
-mkdir -p "$HERMES_HOME/prepsheet/osint_cache"
+mkdir -p "$HOME/Desktop/PrepSheets"
+mkdir -p "$HERMES_HOME/prepsheet/logs"
 echo '{}' > "$HERMES_HOME/prepsheet/osint_cache.json"
-echo '[]' > "$HERMES_HOME/prepsheet/meeting_history.json"
+echo '[]' > "$HERMES_HOME/prepsheet/dossier_log.json"
 ```
 
-## Register the cron jobs
+---
 
-The dawn broadside (daily paper):
+## Register Autonomous Tasks
+
+Register the 6:00 AM dawn cron job:
+
 ```bash
-hermes cron create "0 4 * * *" \
-  "Generate the morning PrepSheet now: ingest today's calendar and unread emails, run OSINT enrichment, synthesize the headline priority, render the vintage newspaper PDF, print (or save to Desktop), and archive." \
+hermes cron create "0 6 * * *" \
+  "Generate the morning PrepSheet: ingest today's calendar and unread VIP emails, research external attendees, synthesize the headline priority, and render the vintage broadside PDF." \
   --name ps-dawn --skill ps-dawn
 ```
 
-The SMS notification (sent only if the morning paper was generated):
-```bash
-hermes cron create "30 6 * * *" \
-  "If a morning paper was generated today, send the SMS notification to alert the owner it's ready." \
-  --name ps-dawn-notify --skill ps-dawn --deliver
+---
+
+## Completion Confirmation
+
+Confirm setup in a single crisp message:
 ```
+✓ The PrepSheet is now online and active:
+• Morning Broadside: 6:00 AM daily
+• Archive Directory: ~/Desktop/PrepSheets/
+• Internal Domains: mycompany.com (external attendees will be prepped)
+• Meeting Radar: Active 30 minutes before all external meetings
 
-Check existing jobs first:
-```bash
-hermes cron list
+Say "Generate my morning PrepSheet" anytime to produce an immediate sample.
 ```
-
-If `ps-dawn` or `ps-dawn-notify` already exist, don't recreate them.
-
-## If calendar/email ingestion has no credentials
-
-The container starts even without `.env`—by design, so the missing config becomes your message, not a Docker error.
-
-If `$HERMES_HOME/prepsheet/queue/calendar/` is empty and logs show `missing CALENDAR_URL` or `missing IMAP_HOST`, say this in one line:
-
-> I can't reach your calendar or email yet—you'll need to add those credentials to the `.env` file in the project directory. Copy `.env.example` to `.env`, fill in your calendar URL and email app password, then run `docker compose up -d` again. I'll confirm when the first events arrive.
-
-**Do not** try to configure anything yourself and **do not** proceed with scheduling. Without live data, everything you set up is hypothetical.
-
-## Test the printer
-
-If they said they have a printer configured:
-
-```bash
-echo "PrepSheet test print - $(date)" | lp -d default
-```
-
-If this succeeds, confirm: "Printer test succeeded—your morning papers will print automatically."
-
-If it fails, confirm: "No printer detected—all PrepSheets will be saved to `~/Desktop/PrepSheets/` instead. You'll get the same intelligence, just on-screen instead of on-paper."
-
-This is the fallback, not a failure. The product works either way.
-
-## Final confirmation
-
-Summarize in one message:
-- Morning paper generated at [time], SMS alert at [time]
-- PDFs archived to [path]
-- Printer status: [enabled/Desktop-only]
-- VIP senders: [list or "auto-detected"]
-- Meeting radar active: [minutes] before external meetings
-
-Then: "You're all set. I'll generate the first PrepSheet tomorrow morning. If you want to test it now, say 'run dawn' and I'll create a sample based on what's in your calendar today."

@@ -1,18 +1,25 @@
 ---
 name: ps-query
-description: On-demand SMS queries and commands. WHO IS, NEXT, DIGEST, URGENT.
+description: On-demand conversational queries and commands. WHO IS, NEXT, DIGEST, URGENT, and natural language executive Q&A.
+version: 2.0.0
+author: PrepSheet
+metadata:
+  hermes:
+    tags: [prepsheet, query, sms, executive, conversational]
+    related_skills: [ps-shared, ps-osint, ps-dossier, ps-schedule]
 ---
 
-# Executive queries via SMS
+# Executive Conversational Queries
 
-This skill handles incoming text messages from the owner. Four command types:
+This skill handles incoming chat and SMS queries from the executive. Responses must be **2 to 3 sentences maximum**, crisp, and immediately actionable.
+
+---
 
 ## 1. WHO IS [name/company]
 
-"Who is Sarah from Acme?"
+*Example: "Who is Sarah from Acme?"*
 
-Search the OSINT cache and dossier log for the attendee:
-
+1. Query the OSINT cache first via `ps-shared`:
 ```bash
 python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" \
   --search "Sarah" \
@@ -20,187 +27,117 @@ python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" \
   --cache-only
 ```
 
-If found in cache (meeting dossier from today or recent lookup):
-
-**Response (3 sentences max):**
+2. If found in cache (from a recent meeting dossier or lookup):
 ```
-Sarah Chen, VP of Product at Acme Corp. Last interaction: Q3 Roadmap Review on 2026-09-10. Acme raised Series A ($20M) in July, focusing on enterprise SaaS.
+Sarah Chen, VP of Product at Acme Corp. Last interaction: Q3 Roadmap Review on Sept 10. Acme raised a $20M Series A in July focusing on enterprise workflows.
 ```
 
-If not in cache, trigger a live lookup:
-
+3. If not in cache, trigger a live lookup via `ps-osint` (using Plow Latch to inspect LinkedIn/Crunchbase):
 ```bash
 python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" \
-  --search "Sarah" \
+  --attendee "sarah@acme.com" \
   --domain "acme.com"
 ```
 
-If no public record exists:
-
+4. If no public record exists, state explicitly:
 ```
-No public record found for Sarah at acme.com—internal contact or private profile. No recent meetings in your calendar.
+No public record found for Sarah at acme.com—internal contact or private profile. No past meetings found in your calendar.
 ```
 
-Never hallucinate. If you don't have data, say so explicitly.
+*Never hallucinate or guess credentials.*
+
+---
 
 ## 2. NEXT
 
-"What's next?"
+*Example: "What's next?"*
 
-Retrieve the next meeting on today's calendar:
-
+Retrieve the next upcoming meeting on today's calendar:
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/calendar_ingest.py" \
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" \
+  --action read \
   --date today \
   --next-only
 ```
 
-Output:
-```json
-{
-  "time": "15:30",
-  "title": "Product Demo with Acme",
-  "attendees": ["sarah.chen@acme.com"],
-  "duration_min": 30
-}
-```
-
-Check if a dossier exists for this meeting:
-
+Check if a dossier PDF exists for this meeting:
 ```bash
-ls "$HOME/Desktop/PrepSheets/$(date +%Y-%m-%d)-ProductDemoWithAcme.pdf"
+ls "$HOME/Desktop/PrepSheets/"*"-meeting-dossier.pdf" 2>/dev/null
 ```
 
-**Response:**
+**Response Format:**
 ```
-Next: 3:30 PM - Product Demo with Acme (30min)
-Sarah Chen (VP of Product) attending
-Dossier: ~/Desktop/PrepSheets/2026-09-12-ProductDemoWithAcme.pdf
-```
-
-If no dossier exists yet (meeting is >30min away):
-
-```
-Next: 3:30 PM - Product Demo with Acme (30min)
-Sarah Chen attending. Dossier will be ready 30min before the meeting.
+Next: 3:30 PM — Product Demo with Acme Corp (30 min).
+Sarah Chen (VP of Product) attending.
+Dossier: ~/Desktop/PrepSheets/2026-09-15-AcmeCorp-meeting-dossier.pdf
 ```
 
-If no more meetings today:
+If the meeting is more than 30 minutes away and no dossier exists yet:
+```
+Next: 3:30 PM — Product Demo with Acme Corp (30 min).
+Sarah Chen attending. Dossier will be generated automatically at 3:00 PM.
+```
 
+If the calendar is clear for the remainder of the day:
 ```
-No more meetings today. Clear runway.
+Clear runway—no more meetings scheduled for today.
 ```
+
+---
 
 ## 3. DIGEST
 
-"Send me today's headline again"
+*Example: "Send me today's headline again" or "Give me my morning digest"*
 
-Retrieve today's morning paper:
-
+Retrieve today's morning paper headline:
 ```bash
-cat "$HOME/Desktop/PrepSheets/$(date +%Y-%m-%d)-MorningPaper.pdf.headline"
+cat "$HOME/Desktop/PrepSheets/$(date +%Y-%m-%d)-MorningPrepsheet.headline" 2>/dev/null
 ```
 
-The typesetter saves a plain-text `.headline` file alongside every PDF for quick SMS retrieval.
-
-**Response:**
+**Response Format:**
 ```
-Today's priority: Q4 Strategy Review with Client Corp — VP of Eng attending
-
-Full paper: ~/Desktop/PrepSheets/2026-09-12-MorningPaper.pdf
+Today's Priority: Q4 Strategy Review with Acme Corp — Series B expansion on agenda.
+Full broadsheet: ~/Desktop/PrepSheets/2026-09-15-MorningPrepsheet.pdf
 ```
 
-If no paper was generated today (no meetings/emails):
+If no paper was generated (routine internal syncs only):
+```
+No morning paper generated today—clear runway with internal syncs only.
+```
 
-```
-No morning paper today—clear runway. No external meetings or urgent emails.
-```
+---
 
 ## 4. URGENT [name/company]
 
-"URGENT Client Corp"
+*Example: "URGENT Acme Corp"*
 
-Generate an immediate dossier for the next scheduled meeting with that attendee, bypassing the 30-minute window:
-
+Locate the upcoming meeting with that attendee or domain:
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/calendar_ingest.py" \
-  --search-attendee "client.com" \
-  --next-only
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" \
+  --action read \
+  --search-attendee "acme.com"
 ```
 
-If a meeting is found (today or future):
+Immediately trigger `ps-dossier` for this meeting, bypassing the normal 30-minute radar wait.
 
-```json
-{
-  "time": "16:00",
-  "title": "Q4 Contract Finalization",
-  "attendees": ["john.smith@client.com"],
-  "date": "2026-09-12"
-}
+**Response Format:**
+```
+📋 Urgent dossier generated for 3:30 PM meeting with Acme Corp:
+• Sarah Chen, VP of Product (Series A $20M closed July).
+• Latest email: Final pricing and SLA terms pending review.
+Dossier: ~/Desktop/PrepSheets/2026-09-15-AcmeCorp-meeting-dossier.pdf
 ```
 
-Immediately trigger `ps-dossier` for this meeting (same flow as the 30-min radar, but on-demand):
+---
 
-```bash
-hermes skill invoke ps-dossier --meeting-id "2026-09-12-160000-q4-contract-finalization"
-```
+## 5. Free-Form Conversational Inquiries
 
-**Response after dossier generation:**
-```
-📋 Urgent dossier generated for 4:00 PM meeting with Client Corp
+Any message not matching the four primary keywords is interpreted as an executive query:
+- *"When is my next meeting with Stripe?"* → Search calendar for Stripe.
+- *"What did Alex email about yesterday?"* → Scan recent VIP emails via Plow Latch.
+- *"Summarize my morning"* → Synthesize today's morning meetings.
 
-• John Smith, VP of Eng (Series B $50M raised in Aug)
-• Latest email: Contract terms discussion, pricing finalization pending
-• Talking points: Deployment timeline, SLA requirements, support model
-
-Full dossier: ~/Desktop/PrepSheets/2026-09-12-Q4ContractFinalization.pdf
-```
-
-If no upcoming meeting with that attendee:
-
-```
-No upcoming meetings found with Client Corp. Want me to search past dossiers or calendar history?
-```
-
-## Free-form queries
-
-Any SMS that doesn't match the four commands above gets interpreted as a natural language query.
-
-**Examples:**
-- "When is my next meeting with Acme?" → Parse as calendar search
-- "What did Sarah say about pricing?" → Search email archives for "pricing" in threads with Sarah
-- "Show me all meetings this week" → Calendar summary for the week
-
-For each:
-1. Parse intent (calendar, email, OSINT, or file search)
-2. Run the appropriate script from `ps-shared`
-3. Respond with a 3-sentence summary + file path if applicable
-
-**Never say "I can't help with that."** Always attempt to interpret the query, and if truly ambiguous, offer 2-3 specific alternatives:
-
-```
-Not sure if you meant:
-1. Next meeting with Acme (calendar search)
-2. Recent emails from Acme (email search)
-3. Background on Acme attendees (OSINT lookup)
-
-Reply with 1, 2, or 3.
-```
-
-## Error handling
-
-- **SMS service unavailable**: Log the query to `$HERMES_HOME/prepsheet/sms_queue.json` for retry when service returns.
-- **Ambiguous attendee name**: Ask for clarification with specific options (e.g., "Did you mean Sarah Chen from Acme or Sarah Lee from Beta Corp?")
-- **No data available**: Be explicit: "No calendar events found with that attendee" or "No OSINT data available for that domain."
-
-Never hallucinate. If you don't know, say so and offer to look it up.
-
-## Rate limiting
-
-If the owner sends >5 queries in 10 minutes, gently suggest:
-
-```
-Getting a lot of queries—want me to generate a full briefing document instead of individual lookups?
-```
-
-This prevents SMS spam and offers a better UX for rapid-fire questions (compile into one PDF).
+**Rules for Natural Language Responses:**
+1. Keep replies strictly under 3 sentences unless asked for an in-depth breakdown.
+2. If ambiguous, provide 2 to 3 numbered choices rather than generic apologies.
+3. If information is missing, clearly state what was searched and offer next steps.

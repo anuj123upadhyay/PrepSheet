@@ -55,12 +55,13 @@ Text the agent:
 
 | Skill | Purpose | Key Features |
 |-------|---------|--------------|
-| `ps-setup` | Initial configuration wizard | Calendar/email/printer/SMS setup |
-| `ps-dawn` | Morning newspaper generator | Headline priority, 3-column layout, PDF generation |
+| `ps-setup` | Conversational onboarding wizard | Domain, VIP, schedule & radar setup |
+| `ps-dawn` | Morning newspaper broadside | Headline priority, 3-column layout, PDF generation |
 | `ps-dossier` | Meeting radar & dossiers | Email context, attendee backgrounds, talking points |
-| `ps-query` | On-demand SMS queries | WHO IS, NEXT, DIGEST, URGENT commands |
-| `ps-osint` | OSINT engine | Zero-hallucination public intelligence |
-| `ps-shared` | Shared infrastructure | Calendar/email ingestion, typesetter, printer, SMS |
+| `ps-query` | On-demand conversational queries | WHO IS, NEXT, DIGEST, URGENT, natural language |
+| `ps-schedule` | Interactive meeting scheduling | Explicit confirmation, Plow/Mac calendar booking |
+| `ps-osint` | Zero-hallucination OSINT engine | Verified public intelligence via Plow Latch |
+| `ps-shared` | Shared infrastructure | Typesetter, Mac calendar, OSINT cache, SMS |
 
 ### Technology Stack
 

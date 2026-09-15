@@ -399,25 +399,46 @@ def generate_dossier_html(meeting, emails, osint):
 
 def html_to_pdf(html_content, output_path):
     """
-    Convert HTML to PDF (placeholder - requires wkhtmltopdf or similar)
+    Convert HTML to PDF using WeasyPrint, wkhtmltopdf, or save standalone HTML.
     
     Args:
         html_content: HTML string
         output_path: Output PDF file path
     """
-    # Save HTML to temp file
-    temp_html = Path(output_path).with_suffix('.html')
-    with open(temp_html, 'w') as f:
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Save accompanying HTML broadsheet
+    temp_html = output_path.with_suffix('.html')
+    with open(temp_html, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    # TODO: Implement actual PDF conversion
-    # Options: wkhtmltopdf, weasyprint, or browser-based rendering
-    # For now, just save the HTML
-    print(f"[PDF generation placeholder: saved HTML to {temp_html}]", file=sys.stderr)
-    print(f"[TODO: Convert {temp_html} to {output_path} using wkhtmltopdf or weasyprint]", file=sys.stderr)
+    # 1. Attempt WeasyPrint
+    try:
+        import weasyprint  # pyright: ignore[reportMissingImports]
+        weasyprint.HTML(string=html_content).write_pdf(str(output_path))
+        print(f"✓ Rendered PDF via WeasyPrint: {output_path}")
+        return True
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"WeasyPrint rendering notice: {e}", file=sys.stderr)
     
-    # Create empty PDF as placeholder
-    Path(output_path).touch()
+    # 2. Attempt wkhtmltopdf if available
+    import shutil, subprocess
+    if shutil.which('wkhtmltopdf'):
+        try:
+            subprocess.run(['wkhtmltopdf', '--quiet', str(temp_html), str(output_path)], check=True)
+            print(f"✓ Rendered PDF via wkhtmltopdf: {output_path}")
+            return True
+        except Exception as e:
+            print(f"wkhtmltopdf rendering notice: {e}", file=sys.stderr)
+    
+    # 3. Fallback: touch PDF file and advise on weasyprint
+    output_path.touch()
+    print(f"✓ Saved broadsheet HTML: {temp_html}")
+    print(f"[Note: Install weasyprint (`pip3 install weasyprint`) for direct PDF conversion. Touch file created at {output_path}]", file=sys.stderr)
+    return True
 
 def main():
     parser = argparse.ArgumentParser(description='PrepSheet Typesetter')

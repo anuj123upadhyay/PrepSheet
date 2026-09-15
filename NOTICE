@@ -1,12 +1,10 @@
-Bill Watch
-Copyright 2026 Gabriel Ribeiro
+PrepSheet
+Copyright 2026 Anuj Upadhyay
 
-Este produto inclui software desenvolvido por Gabriel Ribeiro.
+This product includes software built upon the Plow Hermes Agent base image
+(plow-pbc/plow-hermes-agent, Apache-2.0, Copyright 2026 The Plow Collective, Inc.)
+and Hermes Agent from Nous Research.
 
-Construido sobre a imagem base Hermes Agent da Plow
-(plow-pbc/plow-hermes-agent, Apache-2.0, Copyright 2026 The Plow
-Collective, Inc.) e sobre o Hermes Agent da Nous Research.
-
-"Plow" e o logo da Plow sao marcas de The Plow Collective, Inc.
-"Hermes" e marca da Nous Research. Este projeto nao e afiliado a
-nenhuma das duas e a licenca nao concede direitos de marca.
+"Plow" and the Plow logo are trademarks of The Plow Collective, Inc.
+"Hermes" is a trademark of Nous Research. This project is not affiliated
+with either entity and the license does not grant trademark rights.

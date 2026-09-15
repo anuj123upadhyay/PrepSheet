@@ -1,335 +1,208 @@
-# The PrepSheet
+<h1 align="center">The PrepSheet</h1>
 
-**An autonomous executive chief of staff and intelligence daemon**
+<p align="center">
+  <b>An autonomous intelligence daemon that reads your calendar, researches every person you're meeting,<br>
+  and has a vintage newspaper waiting on your desktop before you wake up.</b>
+</p>
 
-The PrepSheet reclaims your morning focus by converting raw calendar invites, unread emails, and external web intelligence into a tangible, vintage-style physical "Morning Newspaper" delivered before dawn, supplemented by automated meeting dossiers throughout the day.
-
-Built with **Plow** and **Hermes** for the hackathon.
-
----
-
-## What It Does
-
-### 1. The 04:00 AM Dawn Broadside (Daily Autonomous Run)
-
-Every morning at 4 AM, The PrepSheet:
-
-- **Ingests** today's calendar events and unread VIP emails (read-only)
-- **Enriches** external attendees with public OSINT (LinkedIn, Crunchbase, recent news)
-- **Calculates** the single most critical priority for your front-page headline
-- **Generates** a vintage three-column broadsheet PDF:
-  - **Left**: Daily chronological agenda
-  - **Center**: Meeting intelligence & strategic talking points  
-  - **Right**: Urgent email triage
-- **Prints** the paper physically (or saves to `~/Desktop/PrepSheets/` if no printer)
-- **Sends SMS** at 6:30 AM: *"Your PrepSheet is ready on your desk"*
-
-### 2. The 30-Minute Meeting Radar (Just-In-Time Dossiers)
-
-Continuously monitors your calendar. Exactly 30 minutes before external meetings:
-
-- **Audits** recent email exchanges with attendees
-- **Generates** a focused one-page dossier with attendee backgrounds
-- **Saves** to `~/Desktop/PrepSheets/[Date]-[MeetingName].pdf`
-- **Sends SMS** with a 3-bullet executive brief and file path
-
-### 3. On-Demand Executive Queries (SMS Loop)
-
-Respond to texts like:
-
-- **"WHO IS Sarah from Acme?"** → 3-sentence OSINT summary
-- **"NEXT"** → Next meeting brief with dossier link
-- **"DIGEST"** → Resend today's headline
-- **"URGENT Client Corp"** → Immediate dossier generation
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#what-it-will-not-do">Boundaries</a> ·
+  Built for the <a href="https://luma.com/3uftu95w">Hermes Hackathon</a>
+</p>
 
 ---
 
-## Installation & Setup
+You have a 9 AM with someone you've never met. Their company just raised a Series B. They sent you an email last Tuesday that you didn't reply to. You know none of this at 8:55.
 
-### Prerequisites
+The PrepSheet does. It was working while you slept.
 
-- Docker & Docker Compose
-- Calendar access (CalDAV URL or local `.ics` export)
-- Email access (IMAP credentials)
-- *Optional:* Local printer (CUPS configured)
-- *Optional:* Hermes SMS integration
+Every morning before 6 AM it reads your calendar, scans your unread emails, and researches every external attendee — LinkedIn, Crunchbase, recent news — with zero hallucination. It calculates the single most important thing you need to know today, then lays it all into a vintage three-column broadsheet PDF sitting on your desktop when you open your laptop.
 
-### Quick Start
+Thirty minutes before every external meeting, a one-page dossier arrives: who you're meeting, what you last talked about, what to say. Text it a name and it tells you who they are. Text it `NEXT` and it tells you what's coming. No app to open. No tab to switch to.
 
-1. **Clone and configure:**
+---
 
-```bash
-cd PrepSheet-Folder/PrepSheet
-cp .env.example .env
-# Edit .env with your calendar URL and email credentials
+## What makes it different
+
+Every prep tool is stateless: it sees one request, answers it, forgets it.
+The PrepSheet keeps **context across your entire day** — calendar, email history, OSINT cache — and reasons across all of it:
+
+- *"Prep me for my 3 PM with Stripe"* → pulls their recent funding news, your last email thread with them, and writes talking points
+- *"Who is Sarah from Acme?"* → 3-sentence verified summary from public sources, cached for 30 days
+- *"Schedule a sync with Dan tomorrow at 2 PM"* → parsed, confirmed with you, written to calendar — not before
+
+Nothing is guessed. If a person has no public profile, it says exactly that.
+
+---
+
+## How it works
+
+The agent **thinks** in a container. The intelligence **happens** through Plow Latch — authenticated access to your already-logged-in browser sessions, no OAuth, no API keys.
+
+```mermaid
+flowchart LR
+    subgraph Sources["Your Data (Read-Only)"]
+        CAL[Google Calendar]
+        GMAIL[Gmail Inbox]
+        MAC[Mac Calendar\nEventKit]
+    end
+
+    subgraph Agent["Hermes Agent · Docker Container"]
+        DAWN[ps-dawn\nMorning Paper]
+        DOSSIER[ps-dossier\nMeeting Dossier]
+        QUERY[ps-query\nOn-Demand Queries]
+        SCHED[ps-schedule\nMeeting Scheduler]
+        OSINT[ps-osint\nZero-Hallucination Intel]
+        TYPE[typesetter.py\nWeasyPrint PDF Engine]
+    end
+
+    subgraph Out["Output"]
+        PDF["~/Desktop/PrepSheets/\nbind-mounted to Mac"]
+        SMS[SMS / Chat Reply]
+    end
+
+    CAL -->|Plow Latch| DAWN
+    GMAIL -->|Plow Latch| DAWN
+    MAC --> DAWN
+    DAWN --> OSINT --> TYPE --> PDF
+    DAWN --> SMS
+
+    CAL -->|30 min radar| DOSSIER
+    DOSSIER --> OSINT
+    DOSSIER --> TYPE
+
+    QUERY --> OSINT
+    QUERY --> SMS
+    SCHED -->|confirmed by you| CAL
 ```
 
-2. **Build and start:**
+---
+
+## What a day looks like
+
+```mermaid
+sequenceDiagram
+    participant You
+    participant PrepSheet
+    participant Plow as Plow Latch
+    participant Desktop
+
+    Note over PrepSheet: 06:00 AM — ps-dawn fires
+    PrepSheet->>Plow: Read Google Calendar
+    PrepSheet->>Plow: Scan Gmail (VIP + unread)
+    PrepSheet->>Plow: Research external attendees
+    PrepSheet->>Desktop: Morning broadsheet PDF
+    PrepSheet->>You: SMS — "Your PrepSheet is ready"
+
+    Note over PrepSheet: 08:30 AM — 30 min before your 9 AM
+    PrepSheet->>Plow: Pull email history with attendees
+    PrepSheet->>Plow: Fresh OSINT on company
+    PrepSheet->>Desktop: Meeting dossier PDF
+    PrepSheet->>You: SMS — 3-bullet brief + file path
+
+    You->>PrepSheet: "WHO IS the CFO at Acme?"
+    PrepSheet->>You: 3-sentence verified summary
+
+    You->>PrepSheet: "Schedule a sync with Dan Friday 2 PM"
+    PrepSheet->>You: Parsed details — confirm?
+    You->>PrepSheet: "yes"
+    PrepSheet->>Plow: Create calendar event
+```
+
+---
+
+## The seven skills
+
+| Skill | What it does |
+|---|---|
+| `ps-setup` | Conversational onboarding — internal domains, VIP senders, schedule preferences |
+| `ps-dawn` | Morning broadsheet — fires at 6 AM, generates the daily PDF |
+| `ps-dossier` | Meeting dossier — triggered 30 min before every external meeting |
+| `ps-query` | On-demand queries — WHO IS, NEXT, DIGEST, URGENT |
+| `ps-schedule` | Meeting scheduling — parses natural language, confirms, creates event |
+| `ps-osint` | Intelligence engine — LinkedIn, Crunchbase, news via Plow Latch, 30-day cache |
+| `ps-shared` | Toolbox — WeasyPrint typesetter, Mac EventKit calendar, OSINT cache, SMS |
+
+---
+
+## The broadsheet format
+
+Every morning paper is a fixed three-column vintage newspaper layout:
+
+```mermaid
+block-beta
+  columns 3
+  A["📅 TODAY'S AGENDA\n──────────\n09:00 · Strategy Sync\nAcme Corp — 60 min\n\n11:00 · Team standup\nInternal — 15 min\n\n14:00 · Investor call\nSequoia — 45 min"]:1
+  B["🔍 MEETING INTEL\n──────────\nSarah Chen, CTO\nAcme Corp · Series B $40M\nRecent: keynote at SaaStr\n\nJames Park, Partner\nSequoia · 12 portcos\nRecent: published AI thesis"]:1
+  C["📬 URGENT TRIAGE\n──────────\nFrom: sarah@acme.com\nRe: Q4 roadmap alignment\n\nFrom: james@sequoia.com\nRe: Board deck request\n28h unanswered"]:1
+```
+
+---
+
+## Install
+
+**Prerequisites:** Docker, Docker Compose, Plow credentials.
 
 ```bash
+# 1. Clone
+git clone <repo-url> && cd PrepSheet
+
+# 2. Drop in your Plow credentials
+cp plow-credentials.example plow-credentials
+
+# 3. Build — WeasyPrint and all PDF deps install automatically
 docker compose build
+
+# 4. Start
 docker compose up -d
+
+# 5. Send it a message — ps-setup guides you through the rest
 ```
 
-3. **Initial setup conversation:**
-
-Send your first message to The PrepSheet agent via Hermes. It will guide you through:
-
-- Calendar/email confirmation
-- PDF archive path (default: `~/Desktop/PrepSheets/`)
-- Printer setup (or Desktop-only fallback)
-- SMS preferences
-- VIP sender list
-
-4. **Test the pipeline:**
-
-```bash
-# Manually trigger morning paper generation
-docker compose exec agent hermes skill invoke ps-dawn
-```
+PDFs appear at `~/Desktop/PrepSheets/` automatically — the container writes directly to your Mac desktop via a Docker volume mount. No file transfer. No copy step.
 
 ---
 
-## Architecture
+## What it will not do
 
-### Skills
-
-- **`ps-setup`**: Initial configuration wizard
-- **`ps-dawn`**: Morning newspaper generator (4 AM cron)
-- **`ps-dossier`**: Meeting radar & dossier generation (30-min trigger)
-- **`ps-query`**: On-demand SMS queries (WHO IS, NEXT, DIGEST, URGENT)
-- **`ps-osint`**: Zero-hallucination OSINT engine (LinkedIn, Crunchbase, news)
-- **`ps-shared`**: Shared scripts (calendar/email ingestion, typesetter, printer, SMS)
-
-### Data Flow
-
-```
-Calendar/Email (Read-Only)
-  ↓
-Queue Directory ($HERMES_HOME/prepsheet/queue/)
-  ↓
-Ingestion Scripts (calendar_ingest.py, email_ingest.py)
-  ↓
-OSINT Enrichment (osint_lookup.py via Plow Latch)
-  ↓
-Typesetter (typesetter.py → Vintage PDF)
-  ↓
-Printer (printer.py → CUPS) OR Desktop  Folder PDF
-
-
-```
-
-### Autonomous Scheduling
-
-The PrepSheet runs on these cron jobs (configured in `ps-setup`):
-
-- `0 4 * * *` — Dawn broadside generation
-- `30 6 * * *` — SMS notification (if paper was generated)
-- `*/15 * * * *` — Meeting radar (checks for upcoming meetings)
+- Publish, archive, or mark a single email as read
+- Accept, decline, or modify any existing calendar invite
+- Send an email on your behalf
+- Create a calendar event without your explicit confirmation
+- Fabricate attendee bios — if there's no public record, it says so
+- Write any temp file outside its sandbox (`/var/lib/hermes/`) — never `/tmp/`
 
 ---
 
-## Configuration
+## Under the hood
 
-Located at `$HERMES_HOME/prepsheet/config.json`:
-
-```json
-{
-  "dawn_hour": 4,
-  "sms_notify_hour": 6.5,
-  "sms_enabled": true,
-  "pdf_archive_path": "~/Desktop/PrepSheets",
-  "printer_enabled": true,
-  "printer_name": "default",
-  "vip_senders": ["client.com", "ceo@mycompany.com"],
-  "meeting_radar_minutes": 30,
-  "osint_blacklist": []
-}
-```
-
-### Environment Variables (`.env`)
-
-```bash
-# Calendar Access
-CALENDAR_URL=https://caldav.provider.com/user/calendar
-
-# Email Access (IMAP)
-IMAP_HOST=imap.gmail.com
-IMAP_PORT=993
-IMAP_USER=your@email.com
-IMAP_PASSWORD=your-app-password
-
-# Hermes SMS (if enabled)
-HERMES_SMS_ENABLED=true
-HERMES_SMS_NUMBER=+1234567890
-```
+| Path | What |
+|---|---|
+| `runtime/SOUL.md` | Persona, hard rules, and the seven skills |
+| `ps-shared/scripts/typesetter.py` | HTML → PDF engine via WeasyPrint — three-column broadsheet and dossier layouts |
+| `ps-shared/scripts/mac_calendar_simple.py` | Direct macOS EventKit integration for local calendar read/write |
+| `ps-shared/scripts/osint_cache.py` | 30-day OSINT profile cache at `~/.hermes/prepsheet/osint_cache.json` |
+| `ps-shared/scripts/meeting_monitor.py` | Background meeting radar — fires ps-dossier 30 min before external meetings |
+| `ps-shared/scripts/sms.py` | Outbound SMS with rate-limiting and audit log |
+| `Dockerfile` | Debian 13 (trixie) base, WeasyPrint + system PDF deps pre-installed |
+| `compose.yml` | `~/Desktop/PrepSheets` bind-mounted; `agent-home` volume for session persistence |
 
 ---
 
-## The Vintage Typesetting Standard
+## Licence
 
-Every PDF follows the broadsheet format:
-
-- **Three-column layout** with serif typography (Garamond)
-- **Front-page banner headline** (48pt bold) featuring the day's priority
-- **Section rules** (thin horizontal lines) separating content
-- **Black on white only** for reliable printing
-- **Archival footer** with generation timestamp and file path
+MIT — see [LICENSE](LICENSE).
 
 ---
 
-## Privacy & Security
+## The Plow tools it uses
 
-### Read-Only Operation
-
-The PrepSheet **never**:
-
-- Deletes, moves, or archives emails
-- Accepts, declines, or modifies calendar invites
-- Sends emails or responses
-- Accesses financial accounts or payment systems
-- Stores passwords in chat (only in `.env` or credential files)
-
-### Zero-Hallucination OSINT
-
-When gathering attendee backgrounds:
-
-- **Only verified public sources**: LinkedIn, Crunchbase, company websites, Google News
-- **No personal contact info**: Never extracts phone numbers or addresses
-- **Explicit uncertainty**: States "No public record found" when data doesn't exist
-- **30-day cache**: Avoids redundant lookups, respects rate limits
-
-### Data Storage
-
-- **Calendar/email queue**: Temporary, deleted after processing
-- **OSINT cache**: 30-day TTL, public data only
-- **PDFs**: Saved to local Desktop (user-controlled)
-- **Logs**: Structured JSON in `$HERMES_HOME/prepsheet/logs/`
+- **[Plow Latch](https://plow.computer)** — Authenticated, sandboxed access to your already-logged-in browser. This is how The PrepSheet reads Google Calendar, Gmail, LinkedIn, Crunchbase, and the web without a single API key or OAuth flow. Every web action is approved through Latch.
+- **[Hermes](https://plow.computer)** — The agent conversation framework. Powers the skill routing, conversational SMS loop, cron scheduling, and the runtime that keeps The PrepSheet running autonomously 24/7.
+- **[agent-index-client](https://github.com/plow-pbc/agent-index-client)** — Usage reporting to the Plow Agent Index.
 
 ---
 
-## Development & Customization
-
-### Running Scripts Manually
-
-All scripts in `ps-shared/scripts/` can be run standalone:
-
-```bash
-# Test calendar ingestion
-python3 ps-shared/scripts/calendar_ingest.py --date today
-
-# Test OSINT lookup
-python3 ps-shared/scripts/osint_lookup.py \
-  --attendee "test@example.com" \
-  --domain "example.com" \
-  --verbose
-
-# Test PDF generation
-python3 ps-shared/scripts/typesetter.py \
-  --mode paper \
-  --events events.json \
-  --emails emails.json \
-  --headline "Test Headline" \
-  --output ~/Desktop/test.pdf
-```
-
-### Adding Custom Templates
-
-Edit `ps-shared/scripts/typesetter.py` to customize:
-
-- Font families (currently Garamond)
-- Column widths
-- Color schemes (keep black/white for printing)
-- Section layouts
-
-### Extending OSINT Sources
-
-Add new data sources in `ps-shared/scripts/osint_lookup.py`:
-
-```python
-def custom_research(domain):
-    """Your custom research function"""
-    # Use Plow Latch to search additional sources
-    results = plow_latch_search(f"{domain} your-query", domain="your-source.com")
-    return parsed_results
-```
-
----
-
-## Troubleshooting
-
-### "No calendar events found"
-
-- Check `$HERMES_HOME/prepsheet/queue/calendar/` is populated
-- Verify `CALENDAR_URL` in `.env` is correct
-- Test calendar access: `python3 ps-shared/scripts/calendar_ingest.py --date today`
-
-### "Printer unavailable"
-
-- This is **not an error** — PDFs save to Desktop automatically
-- To enable printing, ensure CUPS is installed: `apt-get install cups cups-client`
-- Test printer: `echo "test" | lp -d default`
-
-### "SMS not sending"
-
-- Check `sms_enabled: true` in config
-- Verify Hermes SMS credentials in `.env`
-- Check logs: `$HERMES_HOME/prepsheet/logs/sms_sent.log`
-
-### "OSINT lookups returning empty"
-
-- Plow Latch integration is placeholder in initial build
-- Check `$HERMES_HOME/prepsheet/osint_cache.json` for cached data
-- Run with `--verbose` flag to see source hits/misses
-
----
-
-## Hackathon Notes
-
-### What's Implemented
-
-✅ Complete skill architecture (6 skills + shared scripts)  
-✅ Calendar & email ingestion (placeholders ready for real integration)  
-✅ OSINT lookup framework with 30-day caching  
-✅ Vintage PDF typesetter (HTML → PDF conversion pending)  
-✅ Printer integration with Desktop fallback  
-✅ SMS wrapper with rate limiting  
-✅ Meeting radar monitoring  
-✅ Cron job scheduling  
-
-### What Needs Integration
-
-🔧 **Plow Latch** for web research (current: placeholder)  
-🔧 **PDF rendering** (need wkhtmltopdf or weasyprint)  
-🔧 **Hermes SMS** plugin (current: simulated)  
-🔧 **Real calendar parser** (CalDAV or `.ics` import)  
-🔧 **Real IMAP ingestion** (current: queue-based placeholder)  
-
-### Quick Wins for Demo
-
-1. **Manual trigger**: `docker compose exec agent hermes skill invoke ps-dawn`
-2. **Sample data**: Pre-populate queue with mock events/emails
-3. **HTML preview**: View `.html` files before PDF conversion
-4. **Desktop fallback**: Always works, even without printer
-
----
-
-## License
-
-See `LICENSE` and `NOTICE` files.
-
----
-
-## Credits
-
-Built with:
-
-- **Plow** - Local-first agent infrastructure
-- **Hermes** - Agent conversation framework
-- **Docker** - Containerized deployment
-
-Inspired by the need for calm, prepared mornings in the chaos of founder schedules.
-
----
-
-**The PrepSheet** — Your intelligence daemon. Prepared before dawn, delivered before coffee.
+*Prepared before dawn. Delivered before coffee.*

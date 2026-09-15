@@ -55,12 +55,14 @@ See `ps-osint` skill for research workflow.
 Call the typesetter in dossier mode:
 
 ```bash
+mkdir -p /var/lib/hermes/tmp
+
 python3 "$HERMES_HOME/skills/ps-shared/scripts/typesetter.py" \
   --mode dossier \
-  --meeting meeting.json \
-  --emails email_context.json \
-  --osint osint.json \
-  --output ~/Desktop/PrepSheet/$(date +%Y-%m-%d)-<Company>-meeting-dossier.pdf
+  --meeting /var/lib/hermes/tmp/meeting.json \
+  --emails  /var/lib/hermes/tmp/email_context.json \
+  --osint   /var/lib/hermes/tmp/osint.json \
+  --output ~/Desktop/PrepSheets/$(date +%Y-%m-%d)-<Company>-meeting-dossier.pdf
 ```
 
 The dossier contains:
@@ -69,7 +71,18 @@ The dossier contains:
 - Recent email exchanges (thread summaries)
 - Strategic talking points (auto-generated from context)
 
-Output: `~/Desktop/PrepSheet/YYYY-MM-DD-CompanyName-meeting-dossier.pdf`
+Output: `~/Desktop/PrepSheets/YYYY-MM-DD-CompanyName-meeting-dossier.pdf`
+
+## Step 5: Deliver Conversational Brief
+
+In chat or via SMS (`ps-shared/scripts/sms.py`), deliver a crisp 3-bullet executive brief:
+```
+📋 Meeting Dossier: [Meeting Title] at [Time]
+• [Attendee Name], [Title] at [Company] ([Key OSINT signal/funding])
+• Recent context: [Unresolved email thread topic]
+• Talking points: [Key objective or strategic question]
+Dossier: ~/Desktop/PrepSheets/[Date]-[Company]-meeting-dossier.pdf
+```
 
 ## If internal-only meeting
 

@@ -26,6 +26,25 @@ FROM --platform=${BASE_PLATFORM} public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-
 COPY runtime/SOUL.md /var/lib/hermes/SOUL.md
 COPY LICENSE NOTICE /usr/share/doc/prepsheet/
 
+# WeasyPrint for PDF generation (and its system-level GTK/Pango/Cairo deps).
+# Installed early so the layer is cached independently of skill edits.
+# Notes on package names for Debian 13 (trixie):
+#   libgdk-pixbuf-2.0-0  — hyphen before "2" (trixie renamed it from libgdk-pixbuf2.0-0)
+#   The hermes venv ships without pip; ensurepip bootstraps it before the install.
+RUN apt-get update -qq \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 \
+      libpangoft2-1.0-0 \
+      libharfbuzz0b \
+      libfontconfig1 \
+      libcairo2 \
+      libgdk-pixbuf-2.0-0 \
+      fonts-liberation \
+ && /opt/hermes/.venv/bin/python3 -m ensurepip --upgrade \
+ && /opt/hermes/.venv/bin/python3 -m pip install --no-cache-dir weasyprint \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
 # Entregues em /opt/hermes/skills, fora de toda casa, pra que uma casa
 # bind-montada ainda receba e uma atualizacao de imagem ainda alcance um skill
 # nao customizado -- as duas coisas via reconcile do runtime da base.
@@ -33,6 +52,7 @@ COPY ps-setup/            /opt/hermes/skills/ps-setup/
 COPY ps-dawn/             /opt/hermes/skills/ps-dawn/
 COPY ps-dossier/          /opt/hermes/skills/ps-dossier/
 COPY ps-query/            /opt/hermes/skills/ps-query/
+COPY ps-schedule/         /opt/hermes/skills/ps-schedule/
 COPY ps-osint/            /opt/hermes/skills/ps-osint/
 COPY ps-shared/           /opt/hermes/skills/ps-shared/
 

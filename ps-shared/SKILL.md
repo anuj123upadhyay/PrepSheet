@@ -1,164 +1,171 @@
 ---
 name: ps-shared
-description: Shared scripts for PrepSheet: calendar/email ingestion, OSINT lookup, PDF typesetting, printer, SMS.
+description: Shared toolbox for PrepSheet: Mac calendar access, OSINT cache, PDF typesetting, and SMS alerts.
+version: 2.0.0
+author: PrepSheet
+metadata:
+  hermes:
+    tags: [prepsheet, toolbox, typesetter, osint, calendar, sms]
 ---
 
-# PrepSheet toolbox
+# PrepSheet Toolbox
 
-This directory is not a procedure—it's the toolbox that other PrepSheet skills call. Nothing here executes "because the skill was loaded"; each script has a named caller.
+This directory is the core utility toolkit that other PrepSheet skills invoke. Web browsing, email scanning, and Google Calendar operations are driven directly through **Plow Latch**, while the local utilities below handle system-level execution.
 
-## `scripts/calendar_ingest.py`
+---
 
-Read-only calendar parsing via CalDAV or local `.ics` files. Extracts events for a given date range and identifies external attendees.
+## `scripts/mac_calendar_simple.py`
 
-**Usage:**
-```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/calendar_ingest.py" --date today
-python3 "$HERMES_HOME/skills/ps-shared/scripts/calendar_ingest.py" --date 2026-09-15
-python3 "$HERMES_HOME/skills/ps-shared/scripts/calendar_ingest.py" --next-only
-```
-
-**Output:** JSON array of events with `time`, `title`, `attendees`, `external_domains`, `duration_min`, `location`.
-
-**Called by:** `ps-dawn`, `ps-dossier`, `ps-query`
-
-## `scripts/email_ingest.py`
-
-Read-only IMAP email extraction. Fetches unread messages, filters by VIP senders, and groups by thread.
+Native macOS EventKit integration. Reads calendar events, classifies internal vs. external attendees using `config.json`, and creates new events.
 
 **Usage:**
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/email_ingest.py" --vip-only --since 24h
-python3 "$HERMES_HOME/skills/ps-shared/scripts/email_ingest.py" --participants "john@client.com" --since 7d --threads
+# Read today's events (JSON output with external attendees and meeting_id)
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" --action read --date today
+
+# Read next upcoming meeting only
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" --action read --date today --next-only
+
+# Search for meetings with a specific attendee or company domain
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" --action read --search-attendee "acme.com"
+
+# Create a new event
+python3 "$HERMES_HOME/skills/ps-shared/scripts/mac_calendar_simple.py" \
+  --action create \
+  --title "Strategy Sync" \
+  --start "2026-09-16 14:00" \
+  --duration 60 \
+  --attendees "john@acme.com" \
+  --location "Google Meet"
 ```
 
-**Output:** JSON array of emails with `from`, `subject`, `received`, `preview`, `urgency_score`.
+**Output:** Standardized JSON with `time`, `title`, `attendees`, `external_attendees`, `external_domains`, `duration_min`, `location`, `meeting_id`.
 
-**Called by:** `ps-dawn`, `ps-dossier`, `ps-query`
+**Called by:** `ps-dawn`, `ps-dossier`, `ps-query`, `ps-schedule`, `meeting_monitor.py`
+
+---
+
+## `scripts/osint_cache.py`
+
+Lightweight 30-day cache manager for OSINT profile lookups, stored at `~/.hermes/prepsheet/osint_cache.json`.
+
+**Usage:**
+```bash
+# Check if an email is cached and fresh (<30 days)
+python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_cache.py" --check "john@acme.com"
+
+# Save an OSINT profile into cache with a custom TTL (default 30 days)
+python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_cache.py" \
+  --save "john@acme.com" \
+  --data '{"name": "John Smith", "title": "VP of Eng", "company": "Acme Corp"}' \
+  --ttl 30
+```
+
+**Called by:** `ps-osint`, `ps-query`
+
+---
 
 ## `scripts/osint_lookup.py`
 
-Zero-hallucination OSINT via Plow Latch. Searches LinkedIn, Crunchbase, company sites, and recent news.
+Profile synthesis and fast lookup tool. Checks cache first, formats profile structure, and respects blacklists.
 
 **Usage:**
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" \
-  --attendee "john.smith@client.com" \
-  --domain "client.com" \
-  --cache-ttl 30
+# Search cached profiles by name or domain
+python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" --search "Sarah" --domain "acme.com"
 
-python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" \
-  --search "Sarah" \
-  --domain "acme.com" \
-  --cache-only
+# Inspect profile with cache-only flag
+python3 "$HERMES_HOME/skills/ps-shared/scripts/osint_lookup.py" --attendee "sarah@acme.com" --cache-only
 ```
 
-**Output:** JSON profile with `name`, `title`, `company`, `company_news`, `linkedin_url`, `confidence`.
+**Called by:** `ps-osint`, `ps-query`, `ps-dawn`, `ps-dossier`
 
-**Called by:** `ps-dawn`, `ps-dossier`, `ps-query`, `ps-osint`
+---
 
 ## `scripts/typesetter.py`
 
-Vintage broadsheet PDF generator. Three-column layout with serif typography (Garamond), section rules, and print-ready output.
+Vintage broadsheet layout engine. Renders print-ready PDFs using **WeasyPrint, which is pre-installed in this container**. Output goes directly to `~/Desktop/PrepSheets/` which is bind-mounted to the Mac's Desktop — the file appears on the Mac instantly with no transfer step.
+
+> **CRITICAL: Do NOT attempt to transfer files to the Mac. Do NOT try base64 encoding, Safari automation, Homebrew installation, plow_write_file chunking, or any other workaround. WeasyPrint works inside this container. Just run typesetter.py and the PDF appears on the Mac desktop automatically via the volume mount.**
+
+**Temp files must be written to `/var/lib/hermes/tmp/`** (inside `HERMES_WRITE_SAFE_ROOT`). Never use `/tmp/`.
 
 **Usage:**
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/typesetter.py" \
-  --events events.json \
-  --emails emails.json \
-  --osint osint.json \
-  --headline "Q4 Strategy Review with Client Corp" \
-  --output "$HOME/Desktop/PrepSheets/2026-09-12-MorningPaper.pdf"
+# Always create the staging directory first
+mkdir -p /var/lib/hermes/tmp
+mkdir -p "$HOME/Desktop/PrepSheets"
 
+# Render Morning Paper
+python3 "$HERMES_HOME/skills/ps-shared/scripts/typesetter.py" \
+  --mode paper \
+  --events /var/lib/hermes/tmp/events.json \
+  --emails /var/lib/hermes/tmp/emails.json \
+  --osint  /var/lib/hermes/tmp/osint.json \
+  --headline "Q4 Strategy Review with Acme Corp" \
+  --output "$HOME/Desktop/PrepSheets/$(date +%Y-%m-%d)-MorningPrepsheet.pdf"
+
+# Render Meeting Dossier
 python3 "$HERMES_HOME/skills/ps-shared/scripts/typesetter.py" \
   --mode dossier \
-  --meeting meeting.json \
-  --emails email_context.json \
-  --osint osint.json \
-  --output "$HOME/Desktop/PrepSheets/2026-09-12-Q4StrategyReview.pdf"
+  --meeting /var/lib/hermes/tmp/meeting.json \
+  --emails  /var/lib/hermes/tmp/email_context.json \
+  --osint   /var/lib/hermes/tmp/osint.json \
+  --output "$HOME/Desktop/PrepSheets/$(date +%Y-%m-%d)-AcmeCorp-meeting-dossier.pdf"
 ```
 
-**Output:** Print-ready PDF (black on white, no color) and a `.headline` text file for SMS retrieval.
+**What happens:**
+1. typesetter.py generates HTML and calls WeasyPrint (installed at `/opt/hermes/.venv`)
+2. WeasyPrint renders the PDF entirely inside the container
+3. The PDF lands at `/root/Desktop/PrepSheets/` in the container = `~/Desktop/PrepSheets/` on the Mac (bind-mount)
+4. Done. No transfer, no Mac-side tools needed.
 
 **Called by:** `ps-dawn`, `ps-dossier`
 
-## `scripts/printer.py`
-
-CUPS print daemon interface. Sends PDF to the configured printer or confirms Desktop-only fallback.
-
-**Usage:**
-```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/printer.py" \
-  --file "$HOME/Desktop/PrepSheets/2026-09-12-MorningPaper.pdf" \
-  --printer-name "default"
-```
-
-**Output:** Success/failure status, logged to `$HERMES_HOME/prepsheet/printer.log`.
-
-**Called by:** `ps-dawn`, `ps-dossier` (optional)
+---
 
 ## `scripts/sms.py`
 
-Hermes telephony wrapper. Sends SMS notifications with rate limiting and retry logic.
+Outbound executive telephony wrapper. Dispatches SMS messages with built-in rate-limiting (5 messages / 10 minutes) and audit logging.
 
 **Usage:**
 ```bash
-python3 "$HERMES_HOME/skills/ps-shared/scripts/sms.py" "Good morning. Your PrepSheet is ready."
-echo "Message body" | python3 "$HERMES_HOME/skills/ps-shared/scripts/sms.py"
+python3 "$HERMES_HOME/skills/ps-shared/scripts/sms.py" "Good morning. Your PrepSheet is ready on your desk."
 ```
-
-**Output:** Delivery confirmation or queued retry if service unavailable.
 
 **Called by:** `ps-dawn`, `ps-dossier`, `ps-query`
 
+---
+
 ## `scripts/meeting_monitor.py`
 
-Continuous calendar monitor for the 30-minute meeting radar. Runs on a 15-minute cron interval.
+Continuous background calendar radar. Checks for upcoming external meetings in the 30-minute radar window and prepares context for `ps-dossier`.
 
 **Usage:**
 ```bash
 python3 "$HERMES_HOME/skills/ps-shared/scripts/meeting_monitor.py"
 ```
 
-**Output:** Triggers `ps-dossier` skill for upcoming external meetings.
+**Called by:** System cron / daemon interval
 
-**Called by:** System cron (configured in `ps-setup`)
+---
 
-## Path discipline
+## Configuration Standard
 
-Always call scripts via `$HERMES_HOME/skills/ps-shared/scripts/...`.
-
-The image delivers skills to `/opt/hermes/skills`, the runtime reconciles them to `$HERMES_HOME/skills`, and the latter is what an executing agent finds. A skill that hardcodes `/opt/hermes` works at build time and fails later.
-
-The root-owned copy in `/opt/plow/ps-shared/` exists for what runs alone under the supervisor. It's not yours to call—what you run inside a turn comes from the home; what runs without anyone watching comes from `/opt/plow`, and that separation prevents a single prompt-injection edit from becoming scheduled code.
-
-## Configuration reference
-
-All scripts read from `$HERMES_HOME/prepsheet/config.json`:
+All scripts and skills read from `$HERMES_HOME/prepsheet/config.json`:
 
 ```json
 {
-  "dawn_hour": 4,
-  "sms_notify_hour": 6.5,
-  "sms_enabled": true,
-  "pdf_archive_path": "~/Desktop/PrepSheets",
-  "printer_enabled": true,
-  "printer_name": "default",
-  "vip_senders": ["client.com", "ceo@mycompany.com"],
+  "internal_domains": ["mycompany.com"],
+  "vip_senders": ["client.com", "investor@vc.com"],
+  "calendar_sources": ["mac", "plow-google"],
+  "dawn_hour": 6,
   "meeting_radar_minutes": 30,
+  "pdf_archive_path": "~/Desktop/PrepSheets",
+  "sms_enabled": true,
   "osint_blacklist": []
 }
 ```
 
-Never hardcode paths, hours, or preferences—always read from config.
-
-## Error logging
-
-All scripts log to `$HERMES_HOME/prepsheet/logs/[script_name].log` with ISO 8601 timestamps and structured JSON entries:
-
-```json
-{"timestamp": "2026-09-12T04:05:13Z", "script": "calendar_ingest", "level": "INFO", "message": "Parsed 5 events for 2026-09-12"}
-{"timestamp": "2026-09-12T04:05:18Z", "script": "osint_lookup", "level": "WARN", "message": "Rate limit hit for linkedin.com, using cache"}
-```
-
-This makes debugging autonomous runs tractable—the owner can see exactly what happened at 4 AM without being awake for it.
+- `internal_domains`: Your team's email domains. Anyone not matching this list is classified as external and triggers research/dossiers.
+- `pdf_archive_path`: Standardized destination for all output PDFs and HTML briefs.

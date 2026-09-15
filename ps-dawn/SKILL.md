@@ -71,16 +71,20 @@ Select highest score as headline. If all internal/routine: "Clear Runway — Int
 
 ## Step 5: Generate PDF
 
-Call the typesetter:
+All intermediate JSON files **must** be written inside `HERMES_WRITE_SAFE_ROOT`.
+Use `/var/lib/hermes/tmp/` as the staging directory (created automatically by mkdir):
 
 ```bash
+mkdir -p /var/lib/hermes/tmp
+
+# Write events, emails, and osint JSON to the safe path before calling typesetter
 python3 "$HERMES_HOME/skills/ps-shared/scripts/typesetter.py" \
   --mode paper \
-  --events events.json \
-  --emails emails.json \
-  --osint osint.json \
+  --events /var/lib/hermes/tmp/events.json \
+  --emails /var/lib/hermes/tmp/emails.json \
+  --osint  /var/lib/hermes/tmp/osint.json \
   --headline "<calculated headline>" \
-  --output ~/Desktop/PrepSheet/$(date +%Y-%m-%d)-MorningPrepsheet.pdf
+  --output ~/Desktop/PrepSheets/$(date +%Y-%m-%d)-MorningPrepsheet.pdf
 ```
 
 The typesetter renders a three-column vintage newspaper:
@@ -88,7 +92,7 @@ The typesetter renders a three-column vintage newspaper:
 - Center: Meeting intelligence (attendee backgrounds)
 - Right: Urgent email triage
 
-Output is saved to `~/Desktop/PrepSheet/YYYY-MM-DD-MorningPrepsheet.pdf`
+Output is saved to `~/Desktop/PrepSheets/YYYY-MM-DD-MorningPrepsheet.pdf` alongside a `.headline` text file. Deliver a conversational summary in chat or via SMS upon completion.
 
 ## When to run
 
