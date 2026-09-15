@@ -141,27 +141,60 @@ block-beta
 
 ---
 
-## Install
+## Install (5 minutes)
 
-**Prerequisites:** Docker, Docker Compose, Plow credentials.
+### Requirements
 
-```bash
-# 1. Clone
-git clone <repo-url> && cd PrepSheet
+- **Docker** (Desktop or Engine)
+- **Git**
+- **Plow Latch** — install from [plow.computer](https://plow.computer)
 
-# 2. Drop in your Plow credentials
-cp plow-credentials.example plow-credentials
+---
 
-# 3. Build — WeasyPrint and all PDF deps install automatically
-docker compose build
+### Step 1 — Install the Plow CLI
 
-# 4. Start
-docker compose up -d
-
-# 5. Send it a message — ps-setup guides you through the rest
+```sh
+git clone https://github.com/plow-pbc/plow-agents.git
+export PATH="$PWD/plow-agents/bin:$PATH"
+plow-agents login          # authenticates by texting you a code
 ```
 
-PDFs appear at `~/Desktop/PrepSheets/` automatically — the container writes directly to your Mac desktop via a Docker volume mount. No file transfer. No copy step.
+---
+
+### Step 2 — Get a phone line
+
+```sh
+plow-agents lines            # shows your available lines (ln_...)
+plow-agents mint ln_xxxxx    # creates ./plow-credentials
+```
+
+Save that line ID — you'll text it to interact with The PrepSheet.
+
+---
+
+### Step 3 — Clone and build
+
+```sh
+git clone https://github.com/anuj123upadhyay/PrepSheet.git
+cd PrepSheet
+mv ../plow-credentials .     # move credentials into project
+docker compose up --build -d
+```
+
+First build takes 3–5 minutes (pulls base image + installs WeasyPrint). Watch for startup:
+
+```sh
+docker compose logs -f agent                              # follow logs
+docker compose down -v && docker compose up --build -d   # full reset if needed
+```
+
+---
+
+### Step 4 — Talk to it
+
+Text your Plow line to start. The PrepSheet will guide you through first-time setup conversationally — internal domains, VIP senders, morning paper time.
+
+Once configured, PDFs appear at `~/Desktop/PrepSheets/` automatically. The container writes directly to your Mac desktop via a Docker volume mount — no file transfer, no copy step.
 
 ---
 
