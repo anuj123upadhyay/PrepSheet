@@ -189,8 +189,28 @@ docker compose down -v && docker compose up --build -d   # full reset if needed
 ```
 
 ---
+### Step 4: Register on Agent Index (required)
 
-### Step 4 — Talk to it
+Register your installation to track on the [AI Worth Using Agent Index](https://aiworthusing.com/agent-index):
+
+```sh
+# Download client
+curl -O https://raw.githubusercontent.com/plow-pbc/agent-index-client/main/standalone/agent_index_client.py
+
+# Register (use your own AGENT_ID, like "PrepSheet")
+set -a; . ./plow-credentials; set +a
+python3 agent_index_client.py \
+  --register \
+  --agent "prepsheet-$(whoami)" \
+  --name "PrepSheet - $(whoami)" \
+  --blurb "Autonomous intelligence daemon that reads your calendar, researches every person you're meeting"
+```
+
+Your installation now reports hourly to its Agent Index page.
+
+---
+
+### Step 5 — Talk to it
 
 Text your Plow line to start. The PrepSheet will guide you through first-time setup conversationally — internal domains, VIP senders, morning paper time.
 
