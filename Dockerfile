@@ -1,7 +1,7 @@
 # PrepSheet 
 
 ARG BASE_PLATFORM=linux/amd64
-FROM --platform=${BASE_PLATFORM} public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-cd2a898d673812621bae6764560e455807e9818e@sha256:bfd4980f361a551e62569f8c2eb717c1076d0b8be3a0499b869eaece151336a4
+FROM --platform=${BASE_PLATFORM} public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-ef0019372ff8bca593611b31ebd2e08f9f1458ff@sha256:a8a2f97ad78b8192d80a984dce81d3bf5a9a883d18cb7b677704913a09b56aee
 
 
 COPY runtime/SOUL.md /var/lib/hermes/SOUL.md
@@ -43,16 +43,7 @@ RUN chown -R root:root /opt/plow \
  && find /opt/plow -type f -name '*.py' -exec chmod 0755 {} +
 
 
-COPY vendor/client.pin /opt/plow/agent-index-client.pin
-RUN set -eu; \
-    sha="$(sed -n 's/^sha=//p' /opt/plow/agent-index-client.pin)"; \
-    want="$(sed -n 's/^sha256=//p' /opt/plow/agent-index-client.pin)"; \
-    path="$(sed -n 's/^path=//p' /opt/plow/agent-index-client.pin)"; \
-    curl -fsS --max-time 60 -o /opt/plow/agent-index-client.py \
-      "https://raw.githubusercontent.com/plow-pbc/agent-index-client/${sha}/${path}"; \
-    got="$(sha256sum /opt/plow/agent-index-client.py | cut -d' ' -f1)"; \
-    [ "$got" = "$want" ] || { echo "agent-index client e $got, o pin diz $want" >&2; exit 1; }; \
-    chmod 0644 /opt/plow/agent-index-client.py
-
-COPY image/s6-overlay/ /etc/s6-overlay/
-RUN chmod 0755 /etc/s6-overlay/s6-rc.d/agent-index/run
+# Usage reporting is the base's own Agent Index reporter (pinned client + s6
+# "agent-index" service). It reads AGENT_ID; the Plow cloud passes no
+# environment, so the id is baked here. Compose sets the same value.
+ENV AGENT_ID=PrepSheet
